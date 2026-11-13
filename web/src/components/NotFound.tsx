@@ -1,13 +1,22 @@
 import { Link } from 'react-router';
-import { PageHeader } from './ui';
+import { SearchX } from 'lucide-react';
+import { buttonClass, EmptyState, PageHeader } from './ui';
 
 export function NotFound({ title = 'Page not found', backTo = '/', backLabel = 'Go to your progress' }) {
   return (
     <>
       <PageHeader title={title} />
-      <Link to={backTo} className="text-indigo-600 hover:underline dark:text-indigo-400">
-        {backLabel}
-      </Link>
+      <EmptyState
+        icon={SearchX}
+        title="Nothing here"
+        action={
+          <Link to={backTo} className={buttonClass('primary')}>
+            {backLabel}
+          </Link>
+        }
+      >
+        The link may be out of date, or the item was deleted.
+      </EmptyState>
     </>
   );
 }
