@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ApiRequestError, errorFor } from '../api/client';
-import { logRun, runKeys } from '../api/runs';
+import { listRunDays, localTimeZone, logRun, runKeys } from '../api/runs';
 import { dayKey, monthKey, monthOf } from '../progress/dates';
 import { getWorkout, workoutKeys, type Workout } from '../api/workouts';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { NotFound } from '../components/NotFound';
-import { Button, buttonClass, LoadError, PageHeader, StatusLine } from '../components/ui';
+import { Check, ListChecks, PartyPopper, Pause, Play, RotateCcw, SkipBack, SkipForward, Square, Volume2, VolumeX } from 'lucide-react';
+import { Badge, Button, buttonClass, Card, EmptyState, IconButton, LoadError, PageHeader, StatusLine } from '../components/ui';
+import { streakStats } from '../progress/streaks';
+import { ProgressRing } from './ProgressRing';
 import { formatShortDuration } from '../time';
 import { usePageTitle } from '../usePageTitle';
 import {
@@ -53,10 +56,17 @@ function RunLoader({ id }: { id: number }) {
       return (
         <>
           <PageHeader title={snapshot.name} />
-          <p className="text-zinc-500">This workout has no exercises yet, so there's nothing to run.</p>
-          <Link to={`/workouts/${id}`} className={buttonClass('secondary', 'mt-4')}>
-            Back to workout
-          </Link>
+          <EmptyState
+            icon={ListChecks}
+            title="Nothing to run yet"
+            action={
+              <Link to={`/workouts/${id}`} className={buttonClass('primary')}>
+                Back to workout
+              </Link>
+            }
+          >
+            This workout has no exercises yet. Add some, then start it again.
+          </EmptyState>
         </>
       );
     }
@@ -125,6 +135,9 @@ function RunSession({ workout, onRunAgain }: { workout: Workout; onRunAgain: () 
     mutationFn: () => logRun(workout.id, startedAt),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: runKeys.all }),
   });
+  // Mounted for the whole run so the post-save invalidation refreshes it in time for the celebration.
+  const tz = useMemo(localTimeZone, []);
+  const daysQuery = useQuery({ queryKey: runKeys.days(tz), queryFn: () => listRunDays(tz) });
   const saveRequested = useRef(false);
   useEffect(() => {
     if (pos.done && !saveRequested.current) {
@@ -214,24 +227,45 @@ function RunSession({ workout, onRunAgain }: { workout: Workout; onRunAgain: () 
   const header = (
     <header className="mb-6 flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <p className="text-sm text-zinc-500">Running</p>
-        <h1 className="text-2xl font-bold tracking-tight break-words">{workout.name}</h1>
+        <p className="text-xs font-semibold tracking-wider text-muted uppercase">Running</p>
+        <h1 className="text-3xl font-bold tracking-tight break-words">{workout.name}</h1>
       </div>
-      <Button variant="ghost" onClick={toggleMute} aria-pressed={muted} title={muted ? 'Sound off' : 'Sound on'}>
-        {muted ? 'Sound off' : 'Sound on'}
-      </Button>
+      <div className="flex shrink-0 items-center gap-2">
+        {!pos.done && (
+          <Badge tone="neutral">
+            Exercise {pos.phase.entryIndex + 1} of {entries.length}
+          </Badge>
+        )}
+        <IconButton icon={muted ? VolumeX : Volume2} label="Mute sound" aria-pressed={muted} onClick={toggleMute} />
+      </div>
     </header>
   );
 
   if (pos.done) {
+    const streak =
+      save.data && daysQuery.data
+        ? streakStats(new Set([...daysQuery.data, dayKey(new Date(save.data.completedAt))]), new Date()).current
+        : null;
     return (
       <>
         {header}
-        <section className="rounded-lg border border-emerald-500/30 bg-emerald-50 p-8 text-center dark:bg-emerald-950/30" aria-live="polite">
-          <h2 className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">Workout complete</h2>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-300">
+        <Card
+          as="section"
+          aria-live="polite"
+          className="bg-linear-to-br from-orange-50 to-amber-50 py-10 text-center dark:from-orange-950/40 dark:to-stone-900"
+        >
+          <span className="mx-auto grid size-16 place-items-center rounded-full bg-linear-to-br from-brand to-brand-2 text-white shadow-brand">
+            <PartyPopper className="size-8" aria-hidden="true" />
+          </span>
+          <h2 className="mt-4 text-3xl font-bold">Workout complete</h2>
+          <p className="mt-2 text-muted">
             You finished {workout.name}: {entries.length} exercise{entries.length === 1 ? '' : 's'}.
           </p>
+          {streak !== null && (
+            <p className="mt-3 font-display text-2xl font-bold" data-testid="run-streak">
+              {streak >= 2 ? `🔥 ${streak}-day streak` : 'Day 1 of a new streak'}
+            </p>
+          )}
           <SaveStatus
             pending={save.isPending}
             error={save.isError ? (errorFor(save.error)?.message ?? 'Unknown error') : null}
@@ -239,14 +273,14 @@ function RunSession({ workout, onRunAgain }: { workout: Workout; onRunAgain: () 
             onRetry={() => save.mutate()}
           />
           <div className="mt-6 flex justify-center gap-2">
-            <Button variant="primary" onClick={onRunAgain} autoFocus>
+            <Button variant="primary" icon={RotateCcw} onClick={onRunAgain} autoFocus>
               Run again
             </Button>
             <Link to={`/workouts/${workout.id}`} className={buttonClass('secondary')}>
               Back to workout
             </Link>
           </div>
-        </section>
+        </Card>
         <EntryList workout={workout} currentIndex={entries.length} />
       </>
     );
@@ -271,41 +305,38 @@ function RunSession({ workout, onRunAgain }: { workout: Workout; onRunAgain: () 
           : `Rest ${formatShortDuration(phase.duration / 1000)}. Up next: ${entry.name}.`}
       </p>
 
-      <section
-        aria-label="Current step"
-        className={
-          'rounded-lg border p-6 sm:p-8 ' +
-          (isWork
-            ? 'border-indigo-500/30 bg-indigo-50 dark:bg-indigo-950/30'
-            : 'border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/30')
-        }
-      >
-        <div className="flex items-baseline justify-between gap-4">
-          <p
-            className={
-              'text-sm font-semibold tracking-wide uppercase ' +
-              (isWork ? 'text-indigo-700 dark:text-indigo-300' : 'text-emerald-700 dark:text-emerald-300')
-            }
-            data-testid="phase-label"
-          >
-            {label}
-          </p>
-          {!running && <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Paused</p>}
-        </div>
+      <Card as="section" aria-label="Current step" className={'text-center sm:p-8 ' + (isWork ? '' : 'bg-rest-soft/40')}>
+        <ProgressRing progress={progress} kind={isWork ? 'work' : 'rest'} label={`${isWork ? 'Exercise' : 'Rest'} progress`}>
+          <div>
+            <p
+              className={'text-xs font-bold tracking-widest uppercase ' + (isWork ? 'text-brand-ink' : 'text-rest')}
+              data-testid="phase-label"
+            >
+              {isWork ? 'Work' : label}
+            </p>
+            <p
+              role="timer"
+              aria-label={`${secondsLeft} seconds left`}
+              className="mt-1 font-display text-7xl leading-none font-bold tabular-nums sm:text-8xl"
+              data-testid="countdown"
+            >
+              {formatSeconds(secondsLeft)}
+            </p>
+            {!running && <p className="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-400">Paused</p>}
+          </div>
+        </ProgressRing>
 
-        <div className="mt-3 min-h-16">
+        <div className="mt-6 min-h-16">
           {isWork ? (
             <>
               <h2 className="text-3xl font-bold break-words" data-testid="current-name">
                 {entry.name}
               </h2>
-              {entry.description && (
-                <p className="mt-1 whitespace-pre-line break-words text-zinc-600 dark:text-zinc-400">{entry.description}</p>
-              )}
+              {entry.description && <p className="mx-auto mt-1 max-w-prose whitespace-pre-line break-words text-muted">{entry.description}</p>}
             </>
           ) : (
             <>
-              <p className="text-sm text-zinc-500">Up next</p>
+              <p className="text-sm text-muted">Up next</p>
               <h2 className="text-3xl font-bold break-words" data-testid="current-name">
                 {entry.name}
               </h2>
@@ -313,35 +344,12 @@ function RunSession({ workout, onRunAgain }: { workout: Workout; onRunAgain: () 
           )}
         </div>
 
-        <p
-          role="timer"
-          aria-label={`${secondsLeft} seconds left`}
-          className="mt-6 text-center text-7xl font-bold tabular-nums sm:text-8xl"
-          data-testid="countdown"
-        >
-          {formatSeconds(secondsLeft)}
-        </p>
-
-        <div
-          className="mt-6 h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
-          role="progressbar"
-          aria-label={`${isWork ? 'Exercise' : 'Rest'} progress`}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(progress * 100)}
-        >
-          <div
-            className={'h-full rounded-full ' + (isWork ? 'bg-indigo-600' : 'bg-emerald-600')}
-            style={{ width: `${progress * 100}%` }}
-          />
-        </div>
-
         {isWork && (
-          <p className="mt-4 text-sm text-zinc-500">
+          <p className="mt-3 text-sm text-muted">
             {nextEntry ? (
               <>
                 {workout.restSeconds > 0 ? `Then ${formatShortDuration(workout.restSeconds)} rest, up next: ` : 'Up next: '}
-                <span className="font-medium text-zinc-700 dark:text-zinc-300">{nextEntry.name}</span>{' '}
+                <span className="font-semibold text-ink">{nextEntry.name}</span>{' '}
                 <span className="tabular-nums">({formatShortDuration(nextEntry.durationSeconds)})</span>
               </>
             ) : (
@@ -349,23 +357,45 @@ function RunSession({ workout, onRunAgain }: { workout: Workout; onRunAgain: () 
             )}
           </p>
         )}
-      </section>
+      </Card>
 
       <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-        <Button onClick={back} aria-keyshortcuts="ArrowLeft" title="Back (←)">
-          ← Back
+        <Button icon={SkipBack} onClick={back} aria-keyshortcuts="ArrowLeft" title="Back (←)">
+          Back
         </Button>
-        <Button variant="primary" className="min-w-28" onClick={togglePause} aria-keyshortcuts="Space" title="Pause/Resume (Space)">
+        <Button
+          variant="primary"
+          icon={running ? Pause : Play}
+          className="min-w-32"
+          onClick={togglePause}
+          aria-keyshortcuts="Space"
+          title="Pause/Resume (Space)"
+        >
           {running ? 'Pause' : 'Resume'}
         </Button>
-        <Button onClick={skip} aria-keyshortcuts="ArrowRight" title="Skip (→)">
-          Skip →
+        <Button icon={SkipForward} onClick={skip} aria-keyshortcuts="ArrowRight" title="Skip (→)">
+          Skip
         </Button>
-        <Button variant="ghostDanger" onClick={askToEnd}>
+        <Button variant="ghostDanger" icon={Square} onClick={askToEnd}>
           End workout
         </Button>
       </div>
-      <p className="mt-2 text-center text-xs text-zinc-500">
+      <div className="mt-5 flex flex-wrap justify-center gap-1" aria-hidden="true">
+        {entries.map((e, i) => (
+          <span
+            key={e.id}
+            className={
+              'h-1.5 w-8 rounded-full ' +
+              (i < phase.entryIndex
+                ? 'bg-brand'
+                : i === phase.entryIndex && isWork
+                  ? 'bg-orange-300 dark:bg-orange-700'
+                  : 'bg-line')
+            }
+          />
+        ))}
+      </div>
+      <p className="mt-2 text-center text-xs text-muted">
         Space to pause · ← → to go back or skip · {formatSeconds(remainingTotal)} left in total
       </p>
 
@@ -397,11 +427,11 @@ function SaveStatus({
   savedAt: number | null;
   onRetry: () => void;
 }) {
-  if (pending) return <p className="mt-3 text-sm text-zinc-500">Saving to your progress…</p>;
+  if (pending) return <p className="mt-3 text-sm text-muted">Saving to your progress…</p>;
   if (error) {
     return (
       <div className="mt-3 flex items-center justify-center gap-3" role="alert">
-        <p className="text-sm text-red-600 dark:text-red-400">Couldn't save this run: {error}</p>
+        <p className="text-sm text-red-700 dark:text-red-400">Couldn't save this run: {error}</p>
         <Button onClick={onRetry}>Retry</Button>
       </div>
     );
@@ -409,12 +439,9 @@ function SaveStatus({
   if (savedAt === null) return null;
   const day = new Date(savedAt);
   return (
-    <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
+    <p className="mt-3 text-sm text-muted">
       Saved.{' '}
-      <Link
-        to={`/?month=${monthKey(monthOf(day))}&day=${dayKey(day)}`}
-        className="text-indigo-600 hover:underline dark:text-indigo-400"
-      >
+      <Link to={`/?month=${monthKey(monthOf(day))}&day=${dayKey(day)}`} className="font-semibold text-brand-ink hover:underline">
         See your progress
       </Link>
     </p>
@@ -425,30 +452,32 @@ function EntryList({ workout, currentIndex, currentIsRest = false }: { workout: 
   return (
     <section aria-label="Exercises" className="mt-10">
       <h2 className="mb-2 text-sm font-semibold">Exercises</h2>
-      <ol className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
-        {workout.exercises.map((e, i) => {
-          const status = i < currentIndex ? 'done' : i === currentIndex ? (currentIsRest ? 'next' : 'current') : 'upcoming';
-          return (
-            <li
-              key={e.id}
-              aria-current={status === 'current' ? 'step' : undefined}
-              data-status={status}
-              className={
-                'flex items-center gap-3 py-2 ' +
-                (status === 'done' ? 'text-zinc-400 dark:text-zinc-600' : status === 'current' ? 'font-semibold' : '')
-              }
-            >
-              <span className="w-6 text-right tabular-nums" aria-hidden="true">
-                {status === 'done' ? '✓' : `${i + 1}.`}
-              </span>
-              <span className="min-w-0 flex-1 break-words">{e.name}</span>
-              {status === 'current' && <span className="text-xs text-indigo-600 dark:text-indigo-400">Now</span>}
-              {status === 'next' && <span className="text-xs text-emerald-600 dark:text-emerald-400">Next</span>}
-              {status === 'done' && <span className="sr-only">done</span>}
-            </li>
-          );
-        })}
-      </ol>
+      <Card padding="none">
+        <ol className="divide-y divide-line text-sm">
+          {workout.exercises.map((e, i) => {
+            const status = i < currentIndex ? 'done' : i === currentIndex ? (currentIsRest ? 'next' : 'current') : 'upcoming';
+            return (
+              <li
+                key={e.id}
+                aria-current={status === 'current' ? 'step' : undefined}
+                data-status={status}
+                className={
+                  'flex items-center gap-3 px-4 py-2.5 ' +
+                  (status === 'done' ? 'text-muted' : status === 'current' ? 'bg-brand-soft/50 font-semibold' : '')
+                }
+              >
+                <span className="flex w-6 justify-end tabular-nums" aria-hidden="true">
+                  {status === 'done' ? <Check className="size-4 text-brand" /> : `${i + 1}.`}
+                </span>
+                <span className={'min-w-0 flex-1 break-words ' + (status === 'done' ? 'line-through decoration-muted/50' : '')}>{e.name}</span>
+                {status === 'current' && <Badge>Now</Badge>}
+                {status === 'next' && <Badge tone="neutral">Next</Badge>}
+                {status === 'done' && <span className="sr-only">done</span>}
+              </li>
+            );
+          })}
+        </ol>
+      </Card>
     </section>
   );
 }
