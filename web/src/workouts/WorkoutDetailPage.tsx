@@ -15,7 +15,10 @@ import {
 } from '../api/workouts';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { NotFound } from '../components/NotFound';
-import { Button, FieldError, inputClass, LoadError, StatusLine } from '../components/ui';
+import { ArrowLeft, Clock, ListChecks, Pencil, Plus, Timer, Trash2 } from 'lucide-react';
+import { Menu } from '../components/Menu';
+import { useToast } from '../components/Toast';
+import { Badge, Button, Card, EmptyState, FieldError, focusRing, inputClass, LoadError, StatusLine } from '../components/ui';
 import { InlineSeconds } from '../components/SecondsInput';
 import { formatShortDuration, REST_MAX_SECONDS } from '../time';
 import { usePageTitle } from '../usePageTitle';
@@ -39,6 +42,7 @@ const is404 = (err: unknown) => err instanceof ApiRequestError && err.status ===
 function WorkoutDetail({ id }: { id: number }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const toast = useToast();
   const key = workoutKeys.detail(id);
   const query = useQuery({ queryKey: key, queryFn: () => getWorkout(id) });
   usePageTitle(query.data?.name ?? 'Workout');
@@ -91,6 +95,7 @@ function WorkoutDetail({ id }: { id: number }) {
     },
     onSuccess: (workout) => {
       if (workout) queryClient.setQueryData(key, workout);
+      toast('Exercise removed');
     },
     onSettled: refreshAll,
   });
@@ -105,6 +110,7 @@ function WorkoutDetail({ id }: { id: number }) {
     },
     onSuccess: () => {
       setConfirmingDelete(false);
+      toast(`Deleted ${query.data?.name ?? 'workout'}`);
       void navigate('/workouts');
       queryClient.removeQueries({ queryKey: key });
       void queryClient.invalidateQueries({ queryKey: workoutKeys.list() });
@@ -132,77 +138,109 @@ function WorkoutDetail({ id }: { id: number }) {
 
   return (
     <>
-      <Link to="/workouts" className="mb-4 inline-block text-sm text-indigo-600 hover:underline dark:text-indigo-400">
-        ← All workouts
+      <Link to="/workouts" className={`mb-4 inline-flex items-center gap-1.5 rounded text-sm font-medium text-muted hover:text-ink ${focusRing}`}>
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        All workouts
       </Link>
 
-      {renaming ? (
-        <RenameForm
-          workout={workout}
-          onDone={() => {
-            setRenaming(false);
-            requestAnimationFrame(() => renameButtonRef.current?.focus());
-          }}
-        />
-      ) : (
-        <header className="mb-6 flex items-start justify-between gap-4">
-          <h1 className="min-w-0 text-2xl font-bold tracking-tight break-words">{workout.name}</h1>
-          <div className="flex shrink-0 items-center gap-1">
-            <RunLink workoutId={id} exerciseCount={workout.exercises.length} />
-            <Button ref={renameButtonRef} variant="ghost" onClick={() => setRenaming(true)}>
-              Rename
-            </Button>
-            <Button
-              variant="ghostDanger"
-              onClick={() => {
-                removeWorkout.reset();
-                setConfirmingDelete(true);
-              }}
-            >
-              Delete
-            </Button>
-          </div>
-        </header>
-      )}
-
-      <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-        <label className="flex items-center gap-2">
-          Rest between exercises
-          <InlineSeconds
-            value={workout.restSeconds}
-            min={0}
-            max={REST_MAX_SECONDS}
-            label="Rest between exercises, in seconds"
-            disabled={changeRest.isPending}
-            onCommit={(s) => {
-              resetActionErrors();
-              changeRest.mutate(s);
+      <Card className="mb-6">
+        {renaming ? (
+          <RenameForm
+            workout={workout}
+            onDone={() => {
+              setRenaming(false);
+              requestAnimationFrame(() => renameButtonRef.current?.focus());
             }}
           />
-        </label>
-        {workout.exercises.length > 0 && <span data-testid="total-time">Total run time: {formatShortDuration(totalSeconds)}</span>}
-      </div>
+        ) : (
+          <header className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-3xl font-bold tracking-tight break-words">{workout.name}</h1>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <Badge icon={ListChecks}>
+                  {workout.exercises.length} exercise{workout.exercises.length === 1 ? '' : 's'}
+                </Badge>
+                {workout.exercises.length > 0 && (
+                  <span data-testid="total-time">
+                    <Badge icon={Clock}>Total run time: {formatShortDuration(totalSeconds)}</Badge>
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <RunLink workoutId={id} exerciseCount={workout.exercises.length} />
+              <Button ref={renameButtonRef} variant="ghost" icon={Pencil} onClick={() => setRenaming(true)}>
+                Rename
+              </Button>
+              <Menu
+                label={`More actions for ${workout.name}`}
+                items={[
+                  {
+                    label: 'Delete workout',
+                    icon: Trash2,
+                    danger: true,
+                    onSelect: () => {
+                      removeWorkout.reset();
+                      setConfirmingDelete(true);
+                    },
+                  },
+                ]}
+              />
+            </div>
+          </header>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-line pt-4 text-sm text-muted">
+          <label className="flex items-center gap-2">
+            <Timer className="size-4" aria-hidden="true" />
+            Rest between exercises
+            <InlineSeconds
+              value={workout.restSeconds}
+              min={0}
+              max={REST_MAX_SECONDS}
+              label="Rest between exercises, in seconds"
+              disabled={changeRest.isPending}
+              onCommit={(s) => {
+                resetActionErrors();
+                changeRest.mutate(s);
+              }}
+            />
+          </label>
+        </div>
+      </Card>
 
       <section aria-labelledby="entries-heading">
         <div className="flex items-center justify-between gap-4">
           <h2 id="entries-heading" className="text-lg font-semibold">
-            Exercises <span className="font-normal text-zinc-500">({workout.exercises.length})</span>
+            Exercises <span className="font-normal text-muted">({workout.exercises.length})</span>
           </h2>
-          <Button variant="primary" onClick={() => setAdding(true)}>
+          <Button variant="primary" icon={Plus} onClick={() => setAdding(true)}>
             Add exercises
           </Button>
         </div>
 
         {actionError && (
-          <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
+          <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-400">
             {actionError}
           </p>
         )}
 
         {workout.exercises.length === 0 ? (
-          <p className="py-6 text-zinc-500">No exercises in this workout yet. Use “Add exercises” to pick some.</p>
+          <div className="mt-3">
+            <EmptyState
+              icon={ListChecks}
+              title="No exercises yet"
+              action={
+                <Button variant="primary" icon={Plus} onClick={() => setAdding(true)}>
+                  Add exercises
+                </Button>
+              }
+            >
+              Pick exercises from your library. You can reorder them and set custom times here.
+            </EmptyState>
+          </div>
         ) : (
-          <div className="mt-2">
+          <div className="mt-3">
             <SortableExerciseList
               label={`Exercises in ${workout.name}`}
               items={workout.exercises.map((e) => ({
@@ -276,7 +314,6 @@ function RenameForm({ workout, onDone }: { workout: Workout; onDone: () => void 
 
   return (
     <div
-      className="mb-6"
       onKeyDown={(e) => {
         if (e.key === 'Escape' && !mutation.isPending) {
           e.preventDefault();

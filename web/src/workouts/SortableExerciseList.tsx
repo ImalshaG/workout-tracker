@@ -18,7 +18,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { InlineSeconds } from '../components/SecondsInput';
-import { Button } from '../components/ui';
+import { GripVertical, RotateCcw, X } from 'lucide-react';
+import { focusRing, IconButton } from '../components/ui';
 import { DURATION_MAX_SECONDS, DURATION_MIN_SECONDS, formatShortDuration } from '../time';
 
 export interface SortableItem {
@@ -101,7 +102,7 @@ export function SortableExerciseList({
       }}
     >
       <SortableContext items={keys} strategy={verticalListSortingStrategy}>
-        <ol aria-label={label} className="divide-y divide-zinc-200 dark:divide-zinc-800">
+        <ol aria-label={label} className="space-y-2">
           {items.map((item, index) => (
             <SortableRow
               key={item.key}
@@ -147,8 +148,8 @@ function SortableRow({
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={
-        'relative flex items-start gap-3 py-3 ' +
-        (isDragging ? 'z-10 rounded-md bg-white shadow-lg ring-1 ring-indigo-500/40 dark:bg-zinc-800' : '')
+        'relative flex items-start gap-3 rounded-xl border border-line bg-surface p-3 shadow-xs ' +
+        (isDragging ? 'z-10 shadow-lg ring-2 ring-brand/40' : '')
       }
       data-entry-key={item.key}
     >
@@ -160,24 +161,17 @@ function SortableRow({
         aria-label={`Reorder ${item.name}, position ${index + 1}`}
         title="Drag to reorder"
         disabled={dragDisabled}
-        className="mt-0.5 cursor-grab touch-none rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-indigo-600 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        className={`mt-0.5 cursor-grab touch-none rounded-md p-1 text-muted hover:bg-sunken hover:text-ink active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`}
       >
-        <svg viewBox="0 0 20 20" className="size-4" fill="currentColor" aria-hidden="true">
-          <circle cx="7" cy="5" r="1.5" />
-          <circle cx="13" cy="5" r="1.5" />
-          <circle cx="7" cy="10" r="1.5" />
-          <circle cx="13" cy="10" r="1.5" />
-          <circle cx="7" cy="15" r="1.5" />
-          <circle cx="13" cy="15" r="1.5" />
-        </svg>
+        <GripVertical className="size-4" aria-hidden="true" />
       </button>
-      <span className="mt-0.5 w-6 shrink-0 text-right text-sm text-zinc-500 tabular-nums" aria-hidden="true">
+      <span className="mt-0.5 w-6 shrink-0 text-right text-sm text-muted tabular-nums" aria-hidden="true">
         {index + 1}.
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-medium break-words">{item.name}</p>
+        <p className="font-semibold break-words">{item.name}</p>
         {item.description && (
-          <p className="mt-1 text-sm whitespace-pre-line break-words text-zinc-500 dark:text-zinc-400">{item.description}</p>
+          <p className="mt-1 text-sm whitespace-pre-line break-words text-muted">{item.description}</p>
         )}
       </div>
       {item.duration && onDurationChange && (
@@ -199,18 +193,16 @@ function SortableRow({
               disabled={durationPending}
               aria-label={`Reset ${item.name} to its default ${formatShortDuration(item.duration.defaultSeconds)}`}
               title={`Reset to default (${formatShortDuration(item.duration.defaultSeconds)})`}
-              className="rounded px-1 text-sm text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              className={`grid size-6 place-items-center rounded-md text-muted hover:bg-sunken hover:text-ink disabled:opacity-50 ${focusRing}`}
             >
-              ↺
+              <RotateCcw className="size-3.5" aria-hidden="true" />
             </button>
           ) : (
-            <span className="w-5" aria-hidden="true" />
+            <span className="w-6" aria-hidden="true" />
           )}
         </div>
       )}
-      <Button variant="ghostDanger" onClick={onRemove} disabled={removing} aria-label={`Remove ${item.name}`}>
-        {removing ? 'Removing…' : 'Remove'}
-      </Button>
+      <IconButton icon={X} variant="ghostDanger" label={`Remove ${item.name}`} onClick={onRemove} disabled={removing} className="-my-1" />
     </li>
   );
 }
