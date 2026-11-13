@@ -50,12 +50,12 @@ export function SecondsField({ id, label, value, onChange, min, max, error, hint
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
         />
-        <span className="text-sm text-zinc-500">
+        <span className="text-sm text-muted">
           seconds{seconds !== null && seconds >= 60 ? ` (${formatShortDuration(seconds)})` : ''}
         </span>
       </div>
       {hint && (
-        <p id={`${id}-hint`} className="mt-1 text-xs text-zinc-500">
+        <p id={`${id}-hint`} className="mt-1 text-xs text-muted">
           {hint}
         </p>
       )}
@@ -115,13 +115,11 @@ export function InlineSeconds({ value, onCommit, min, max, label, disabled, cust
         aria-label={label}
         title={`${label} (Enter to save)`}
         className={
-          'w-16 rounded-md border bg-white px-2 py-1 text-right tabular-nums focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 focus:outline-none disabled:opacity-50 dark:bg-zinc-900 ' +
-          (custom
-            ? 'border-indigo-400 text-indigo-700 dark:border-indigo-500 dark:text-indigo-300'
-            : 'border-zinc-300 dark:border-zinc-700')
+          'w-16 rounded-lg border bg-surface px-2 py-1 text-right tabular-nums focus:border-brand focus:ring-3 focus:ring-brand/25 focus:outline-none disabled:opacity-50 ' +
+          (custom ? 'border-brand font-semibold text-brand-ink' : 'border-line')
         }
       />
-      <span className="text-zinc-500">s</span>
+      <span className="text-muted">s</span>
     </span>
   );
 }

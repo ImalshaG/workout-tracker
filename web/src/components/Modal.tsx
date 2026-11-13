@@ -43,8 +43,8 @@ export function Modal({ open, onClose, labelledBy, className = '', children }: P
         onClose();
       }}
       className={
-        'm-auto rounded-lg bg-white p-6 text-zinc-900 shadow-xl backdrop:bg-black/40 ' +
-        'dark:bg-zinc-900 dark:text-zinc-100 ' +
+        'm-auto rounded-2xl border border-line bg-surface p-6 text-ink shadow-2xl ' +
+        'backdrop:bg-stone-950/40 backdrop:backdrop-blur-sm ' +
         className
       }
     >
