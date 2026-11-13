@@ -58,12 +58,12 @@ function NewWorkoutForm({ headingId, onClose }: { headingId: string; onClose: ()
         if (e.key === 'Escape' && mutation.isPending) e.preventDefault();
       }}
     >
-      <h2 id={headingId} className="text-lg font-semibold">
+      <h2 id={headingId} className="text-xl font-bold">
         New workout
       </h2>
       <div>
         <label htmlFor={`${id}-name`} className="mb-1 block text-sm font-medium">
-          Name <span className="text-zinc-500">(required)</span>
+          Name <span className="text-muted">(required)</span>
         </label>
         <input
           id={`${id}-name`}
@@ -96,7 +96,7 @@ function NewWorkoutForm({ headingId, onClose }: { headingId: string; onClose: ()
         emptyHint="No exercises yet. Add some from the library below, or add them later."
       />
       {selected.length > 0 && (
-        <p className="text-sm text-zinc-500" data-testid="new-total">
+        <p className="text-sm text-muted" data-testid="new-total">
           Total run time: {formatShortDuration(totalSeconds)}. Change an exercise's seconds above to set a custom time for this
           workout.
         </p>

@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { errorFor } from '../api/client';
 import { addWorkoutExercises, workoutKeys } from '../api/workouts';
 import { Modal } from '../components/Modal';
+import { useToast } from '../components/Toast';
 import { Button, FieldError } from '../components/ui';
 import { ExerciseSelection, toExerciseItems, type Selected } from './ExerciseSelection';
 
@@ -24,6 +25,7 @@ export function AddExercisesDialog({ workoutId, workoutName, open, onClose }: Pr
 
 function AddExercisesForm({ headingId, workoutId, workoutName, onClose }: Omit<Props, 'open'> & { headingId: string }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [selected, setSelected] = useState<Selected[]>([]);
   const errorId = useId();
 
@@ -31,6 +33,7 @@ function AddExercisesForm({ headingId, workoutId, workoutName, onClose }: Omit<P
     mutationFn: () => addWorkoutExercises(workoutId, toExerciseItems(selected)),
     onSuccess: (workout) => {
       queryClient.setQueryData(workoutKeys.detail(workoutId), workout);
+      toast(`Added ${selected.length} exercise${selected.length === 1 ? '' : 's'}`);
       onClose();
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: workoutKeys.all }),
@@ -46,7 +49,7 @@ function AddExercisesForm({ headingId, workoutId, workoutName, onClose }: Omit<P
         if (e.key === 'Escape' && mutation.isPending) e.preventDefault();
       }}
     >
-      <h2 id={headingId} className="text-lg font-semibold break-words">
+      <h2 id={headingId} className="text-xl font-bold break-words">
         Add exercises to {workoutName}
       </h2>
       <ExerciseSelection

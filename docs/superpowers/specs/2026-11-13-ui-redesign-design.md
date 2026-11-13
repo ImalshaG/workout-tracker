@@ -31,16 +31,17 @@ Scope is a full restyle plus UX polish. No API or database changes.
 
 Defined with `@theme` so they become Tailwind utilities (`bg-surface`, `text-muted`, `font-display`, …):
 
-- **Colours:** `brand` (orange-500 `#f97316`), `brand-2` (amber-500 `#f59e0b`), `brand-soft` (orange-100),
-  `bg` (warm off-white `#fffaf5`), `surface` (white), `line` (`#f1e4d6`), `ink`, `muted`; `rest` (teal) for rest
+- **Colours:** `brand` (orange-500 `#f97316`, decorative only), `brand-2` (amber-500 `#f59e0b`), `brand-fill`
+  (orange-700 `#c2410c`, background for white text), `brand-ink` (accent text), `brand-soft` (orange-100),
+  `canvas` (warm off-white `#fffaf5`), `surface` (white), `line` (`#f1e4d6`), `ink`, `muted`; `rest` (teal) for rest
   phases; `danger` (red). Each has a dark-mode value set under `@media (prefers-color-scheme: dark)` by overriding
   the CSS variables (surfaces become stone-900/950, lines stone-800, brand stays orange).
 - **Fonts:** `--font-sans: Outfit`, `--font-display: "Barlow Condensed"` (used with `tabular-nums` for stats and
   the countdown).
 - **Shape:** card radius 14px, button radius 10px; shadows `shadow-card` (soft warm two-layer) and `shadow-brand`
   (orange glow for primary buttons).
-- **Primary gradient:** `bg-linear-135 from-brand to-brand-2`, exposed through the Button component rather than
-  repeated in pages.
+- **Primary buttons:** solid `brand-fill` with the `shadow-brand` glow (white on the bright orange gradient fails
+  contrast). The orange→amber gradient is used for non-text accents: logo mark, timer ring, highlighted stat card.
 
 Existing streak heat colours (amber-200 / amber-400 / orange-600) and the streak band stay as they are; they
 already fit the palette.

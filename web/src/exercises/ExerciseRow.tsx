@@ -4,7 +4,9 @@ import { errorFor } from '../api/client';
 import { EXERCISE_FIELDS, exerciseKeys, updateExercise, type Exercise } from '../api/exercises';
 import { workoutKeys } from '../api/workouts';
 import { parseSeconds, SecondsField } from '../components/SecondsInput';
-import { Button, FieldError, inputClass } from '../components/ui';
+import { Clock, Pencil, Trash2 } from 'lucide-react';
+import { useToast } from '../components/Toast';
+import { Badge, Button, Card, FieldError, inputClass } from '../components/ui';
 import { DURATION_MAX_SECONDS, DURATION_MIN_SECONDS, formatShortDuration } from '../time';
 
 interface ViewProps {
@@ -22,26 +24,28 @@ export function ExerciseRowView({ exercise, focusEdit, deleting, onEdit, onDelet
   }, [focusEdit]);
 
   return (
-    <li className="flex items-start gap-4 py-4">
+    <Card as="li" padding="sm" className="flex items-start gap-4">
       <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-medium break-words">{exercise.name}</span>
-          <span className="text-sm text-zinc-500 tabular-nums" data-testid="exercise-duration">
-            {formatShortDuration(exercise.durationSeconds)}
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-semibold break-words">{exercise.name}</span>
+          <span data-testid="exercise-duration">
+            <Badge icon={Clock}>{formatShortDuration(exercise.durationSeconds)}</Badge>
           </span>
         </p>
         {exercise.description && (
-          <p className="mt-1 text-sm whitespace-pre-line break-words text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-sm whitespace-pre-line break-words text-muted">
             {exercise.description}
           </p>
         )}
       </div>
       <div className="flex shrink-0 gap-1">
-        <Button ref={editRef} variant="ghost" onClick={onEdit} aria-label={`Edit ${exercise.name}`}>
+        <Button ref={editRef} variant="ghost" size="sm" icon={Pencil} onClick={onEdit} aria-label={`Edit ${exercise.name}`}>
           Edit
         </Button>
         <Button
           variant="ghostDanger"
+          size="sm"
+          icon={Trash2}
           onClick={onDelete}
           disabled={deleting}
           aria-label={`Delete ${exercise.name}`}
@@ -49,7 +53,7 @@ export function ExerciseRowView({ exercise, focusEdit, deleting, onEdit, onDelet
           {deleting ? 'Deleting…' : 'Delete'}
         </Button>
       </div>
-    </li>
+    </Card>
   );
 }
 
@@ -60,6 +64,7 @@ interface EditProps {
 
 export function ExerciseRowEdit({ exercise, onDone }: EditProps) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [name, setName] = useState(exercise.name);
   const [description, setDescription] = useState(exercise.description ?? '');
   const [duration, setDuration] = useState(String(exercise.durationSeconds));
@@ -72,7 +77,10 @@ export function ExerciseRowEdit({ exercise, onDone }: EditProps) {
 
   const mutation = useMutation({
     mutationFn: () => updateExercise(exercise.id, { name, description, durationSeconds: parseSeconds(duration) }),
-    onSuccess: onDone,
+    onSuccess: () => {
+      toast('Exercise saved');
+      onDone();
+    },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
       // Workouts show exercise names.
@@ -99,7 +107,7 @@ export function ExerciseRowEdit({ exercise, onDone }: EditProps) {
   }
 
   return (
-    <li className="py-4" onKeyDown={onKeyDown}>
+    <Card as="li" padding="sm" onKeyDown={onKeyDown}>
       <div className="space-y-3">
         <div>
           <label htmlFor={`${id}-name`} className="sr-only">
@@ -161,6 +169,6 @@ export function ExerciseRowEdit({ exercise, onDone }: EditProps) {
           <FieldError id={`${id}-error`} message={generalError} />
         </div>
       </div>
-    </li>
+    </Card>
   );
 }

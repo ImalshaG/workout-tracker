@@ -4,7 +4,10 @@ import { Link, useSearchParams } from 'react-router';
 import { ApiRequestError, errorFor } from '../api/client';
 import { deleteRun, listRunDays, listRuns, localTimeZone, runKeys, type Run } from '../api/runs';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { Button, LoadError, PageHeader } from '../components/ui';
+import { CalendarDays, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Menu } from '../components/Menu';
+import { useToast } from '../components/Toast';
+import { Button, Card, EmptyState, IconButton, LoadError, PageHeader, StatCard } from '../components/ui';
 import { formatShortDuration } from '../time';
 import { usePageTitle } from '../usePageTitle';
 import {
@@ -110,40 +113,22 @@ export function ProgressPage() {
 
   return (
     <>
-      <PageHeader title="Your progress" />
-
-      <div className="mx-auto mb-4 flex max-w-md flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button onClick={() => shiftMonth(-1)} aria-label="Previous month">
-            ←
-          </Button>
-          <h2 className="min-w-40 text-center text-lg font-semibold" aria-live="polite">
-            {monthLabel}
-          </h2>
-          <Button onClick={() => shiftMonth(1)} aria-label="Next month">
-            →
-          </Button>
-        </div>
-        <Button onClick={() => selectDay(today)} disabled={selected !== null && sameDay(selected, today)}>
-          Today
-        </Button>
-      </div>
+      <PageHeader title="Your progress" subtitle="Every day you train keeps the flame alive." />
 
       {query.isError && !query.data ? (
         <LoadError what="your workout history" onRetry={() => query.refetch()} retrying={query.isFetching} />
       ) : (
         <>
-        <div className="mx-auto max-w-md">
-          <dl className="mb-5 grid grid-cols-3 gap-2 text-center">
-            <Stat
+          <dl className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatCard
               label="Current streak"
               value={streaks.current > 0 ? `${streaks.current >= 2 ? '🔥 ' : ''}${days(streaks.current)}` : '—'}
               note={streaks.current > 0 && !streaks.doneToday ? 'Train today to keep it going' : undefined}
               highlight={streaks.current >= 2}
               testId="current-streak"
             />
-            <Stat label="Longest streak" value={streaks.longest > 0 ? days(streaks.longest) : '—'} testId="longest-streak" />
-            <Stat
+            <StatCard label="Longest streak" value={streaks.longest > 0 ? days(streaks.longest) : '—'} testId="longest-streak" />
+            <StatCard
               label="This month"
               value={query.isPending ? '…' : `${monthRuns.length} workout${monthRuns.length === 1 ? '' : 's'}`}
               note={query.isPending || monthRuns.length === 0 ? undefined : `on ${days(activeDays)}`}
@@ -151,62 +136,86 @@ export function ProgressPage() {
             />
           </dl>
 
-          <table
-            ref={gridRef}
-            className="w-full table-fixed border-separate border-spacing-y-1"
-            aria-label={`Workouts in ${monthLabel}`}
-            onKeyDown={onGridKeyDown}
-          >
-            <thead>
-              <tr>
-                {weekdayNames.map((n) => (
-                  <th key={n.long} scope="col" className="pb-1 text-xs font-medium text-zinc-500">
-                    <abbr title={n.long} className="no-underline">
-                      {n.short}
-                    </abbr>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {weeks.map((week) => (
-                <tr key={dayKey(week[0]!)}>
-                  {week.map((day) => (
-                    <DayCell
-                      key={dayKey(day)}
-                      day={day}
-                      runCount={byDay.get(dayKey(day))?.length ?? (isDone(day) ? 1 : 0)}
-                      // Colour deepens the further into a streak a day is.
-                      position={streakPosition(doneDays, day)}
-                      streakLength={streakLength(doneDays, day)}
-                      // Neighbouring workout days are joined by a band so a streak reads as one run.
-                      joinPrev={isDone(day) && isDone(addDays(day, -1))}
-                      joinNext={isDone(day) && isDone(addDays(day, 1))}
-                      outside={!inMonth(day, month)}
-                      isToday={sameDay(day, today)}
-                      isSelected={selected !== null && sameDay(day, selected)}
-                      tabbable={sameDay(day, focusDay)}
-                      onSelect={() => selectDay(day)}
-                    />
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500" data-testid="heat-legend">
-            <span>Streak day</span>
-            {([1, 2, 3] as const).map((level) => (
-              <span key={level} className="inline-flex items-center gap-1">
-                <span className={'inline-block size-3.5 rounded-full ' + HEAT_CLASSES[level]} aria-hidden="true" />
-                {level === 3 ? '3+' : level}
-              </span>
-            ))}
-            <span className="ml-1">· deeper colour = longer streak</span>
-          </div>
-          <p className="mt-1 text-xs text-zinc-500">Arrow keys move between days · Page Up/Down change month</p>
-        </div>
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            <Card padding="sm" className="sm:p-5">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <IconButton icon={ChevronLeft} label="Previous month" onClick={() => shiftMonth(-1)} />
+                <h2 className="text-center text-lg font-semibold" aria-live="polite">
+                  {monthLabel}
+                </h2>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" onClick={() => selectDay(today)} disabled={selected !== null && sameDay(selected, today)}>
+                    Today
+                  </Button>
+                  <IconButton icon={ChevronRight} label="Next month" onClick={() => shiftMonth(1)} />
+                </div>
+              </div>
 
-          {selected && <DayDetails day={selected} runs={byDay.get(dayKey(selected)) ?? []} loading={query.isPending} />}
+              <table
+                ref={gridRef}
+                className="w-full table-fixed border-separate border-spacing-y-1"
+                aria-label={`Workouts in ${monthLabel}`}
+                onKeyDown={onGridKeyDown}
+              >
+                <thead>
+                  <tr>
+                    {weekdayNames.map((n) => (
+                      <th key={n.long} scope="col" className="pb-1 text-xs font-semibold text-muted">
+                        <abbr title={n.long} className="no-underline">
+                          {n.short}
+                        </abbr>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {weeks.map((week) => (
+                    <tr key={dayKey(week[0]!)}>
+                      {week.map((day) => (
+                        <DayCell
+                          key={dayKey(day)}
+                          day={day}
+                          runCount={byDay.get(dayKey(day))?.length ?? (isDone(day) ? 1 : 0)}
+                          // Colour deepens the further into a streak a day is.
+                          position={streakPosition(doneDays, day)}
+                          streakLength={streakLength(doneDays, day)}
+                          // Neighbouring workout days are joined by a band so a streak reads as one run.
+                          joinPrev={isDone(day) && isDone(addDays(day, -1))}
+                          joinNext={isDone(day) && isDone(addDays(day, 1))}
+                          outside={!inMonth(day, month)}
+                          isToday={sameDay(day, today)}
+                          isSelected={selected !== null && sameDay(day, selected)}
+                          tabbable={sameDay(day, focusDay)}
+                          onSelect={() => selectDay(day)}
+                        />
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted" data-testid="heat-legend">
+                <span>Streak day</span>
+                {([1, 2, 3] as const).map((level) => (
+                  <span key={level} className="inline-flex items-center gap-1">
+                    <span className={'inline-block size-3.5 rounded-full ' + HEAT_CLASSES[level]} aria-hidden="true" />
+                    {level === 3 ? '3+' : level}
+                  </span>
+                ))}
+                <span className="ml-1">· deeper colour = longer streak</span>
+              </div>
+              <p className="mt-1 text-xs text-muted">Arrow keys move between days · Page Up/Down change month</p>
+            </Card>
+
+            <div>
+              {selected ? (
+                <DayDetails day={selected} runs={byDay.get(dayKey(selected)) ?? []} loading={query.isPending} />
+              ) : (
+                <EmptyState icon={CalendarDays} title="Pick a day">
+                  See the workouts you finished on any day.
+                </EmptyState>
+              )}
+            </div>
+          </div>
         </>
       )}
     </>
@@ -237,36 +246,6 @@ const HEAT_CLASSES: Record<Exclude<HeatLevel, 0>, string> = {
 
 /** Half-cell band behind the day circles, joining consecutive workout days (continues past row edges). */
 const STREAK_BAND = 'absolute top-1/2 h-4 -translate-y-1/2 bg-amber-200 dark:bg-amber-900/70';
-
-function Stat({
-  label,
-  value,
-  note,
-  highlight = false,
-  testId,
-}: {
-  label: string;
-  value: string;
-  note?: string | undefined;
-  highlight?: boolean;
-  testId: string;
-}) {
-  return (
-    <div
-      className={
-        'rounded-lg border px-2 py-2 ' +
-        (highlight
-          ? 'border-orange-500/50 bg-amber-50 dark:bg-orange-950/40'
-          : 'border-zinc-200 dark:border-zinc-800')
-      }
-      data-testid={testId}
-    >
-      <dt className="text-xs text-zinc-500">{label}</dt>
-      <dd className="text-base font-semibold tabular-nums">{value}</dd>
-      {note && <dd className="text-[11px] leading-tight text-zinc-500">{note}</dd>}
-    </div>
-  );
-}
 
 function DayCell({
   day,
@@ -325,12 +304,12 @@ function DayCell({
         {joinNext && <span className={STREAK_BAND + ' left-1/2 right-0'} aria-hidden="true" />}
         <span
           className={
-            'relative grid size-8 place-items-center rounded-full text-sm tabular-nums group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-indigo-600 ' +
+            'relative grid size-8 place-items-center rounded-full text-sm tabular-nums group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-brand ' +
             (heat
               ? HEAT_CLASSES[heat] + ' font-semibold group-hover:brightness-110 '
-              : 'group-hover:bg-zinc-200 dark:group-hover:bg-zinc-800 ') +
-            (isToday && !done ? 'font-bold text-indigo-600 dark:text-indigo-400 ' : '') +
-            (isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-zinc-950 ' : '')
+              : 'group-hover:bg-sunken ') +
+            (isToday && !done ? 'font-bold text-brand-ink ' : '') +
+            (isSelected ? 'ring-2 ring-brand ring-offset-2 ring-offset-surface ' : '')
           }
         >
           {onFire ? (
@@ -341,12 +320,12 @@ function DayCell({
             day.getDate()
           )}
           {runCount > 1 && (
-            <span className="absolute -top-1 -right-1.5 rounded-full bg-zinc-800 px-1 text-[9px] leading-3.5 font-semibold text-white dark:bg-zinc-200 dark:text-zinc-900">
+            <span className="absolute -top-1 -right-1.5 rounded-full bg-ink px-1 text-[9px] leading-3.5 font-semibold text-canvas">
               ×{runCount}
             </span>
           )}
         </span>
-        {isToday && <span className="absolute bottom-0 size-1 rounded-full bg-indigo-500" aria-hidden="true" />}
+        {isToday && <span className="absolute bottom-0 size-1 rounded-full bg-brand" aria-hidden="true" />}
       </button>
     </td>
   );
@@ -354,6 +333,7 @@ function DayCell({
 
 function DayDetails({ day, runs, loading }: { day: Date; runs: Run[]; loading: boolean }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [confirming, setConfirming] = useState<Run | null>(null);
   const remove = useMutation({
     mutationFn: async (run: Run) => {
@@ -364,7 +344,10 @@ function DayDetails({ day, runs, loading }: { day: Date; runs: Run[]; loading: b
         throw err;
       }
     },
-    onSuccess: () => setConfirming(null),
+    onSuccess: () => {
+      setConfirming(null);
+      toast('Removed from your history');
+    },
     onSettled: () => queryClient.invalidateQueries({ queryKey: runKeys.all }),
   });
   const deleteError = errorFor(remove.error)?.message;
@@ -372,57 +355,62 @@ function DayDetails({ day, runs, loading }: { day: Date; runs: Run[]; loading: b
   const time = (ms: number) => new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
   return (
-    <section aria-labelledby="day-heading" className="mt-8">
+    <section aria-labelledby="day-heading">
       <h2 id="day-heading" className="text-lg font-semibold">
         {heading}
       </h2>
       {loading ? null : runs.length === 0 ? (
-        <p className="py-4 text-zinc-500">No workouts on this day.</p>
+        <p className="mt-2 rounded-card border border-dashed border-line px-4 py-6 text-center text-muted">No workouts on this day.</p>
       ) : (
-        <ul className="mt-2 divide-y divide-zinc-200 dark:divide-zinc-800">
+        <ul className="mt-3 space-y-2">
           {runs.map((run) => (
-            <li key={run.id} className="flex items-start gap-4 py-3" data-testid="day-run">
+            <Card as="li" padding="sm" key={run.id} className="flex items-start gap-3" data-testid="day-run">
               <div className="min-w-0 flex-1">
-                <p className="font-medium break-words">
+                <p className="font-semibold break-words">
                   {run.workoutId ? (
-                    <Link to={`/workouts/${run.workoutId}`} className="hover:underline">
+                    <Link to={`/workouts/${run.workoutId}`} className="hover:text-brand-ink hover:underline">
                       {run.workoutName}
                     </Link>
                   ) : (
                     <>
-                      {run.workoutName} <span className="text-xs font-normal text-zinc-500">(deleted)</span>
+                      {run.workoutName} <span className="text-xs font-normal text-muted">(deleted)</span>
                     </>
                   )}
                 </p>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="text-sm text-muted">
                   Finished {time(run.completedAt)} · took {formatDuration(run.completedAt - run.startedAt)} ·{' '}
                   {run.exercises.length} exercise{run.exercises.length === 1 ? '' : 's'}
                 </p>
                 <details className="mt-1 text-sm">
-                  <summary className="cursor-pointer text-zinc-600 dark:text-zinc-400">Exercises</summary>
-                  <ol className="mt-1 list-decimal pl-6 text-zinc-600 dark:text-zinc-400">
+                  <summary className="cursor-pointer text-muted hover:text-ink">Exercises</summary>
+                  <ol className="mt-1 list-decimal pl-6 text-muted">
                     {run.exercises.map((e, i) => (
                       <li key={i}>
                         {e.name}
                         {e.durationSeconds !== undefined && (
-                          <span className="text-zinc-500 tabular-nums"> · {formatShortDuration(e.durationSeconds)}</span>
+                          <span className="tabular-nums"> · {formatShortDuration(e.durationSeconds)}</span>
                         )}
                       </li>
                     ))}
                   </ol>
                 </details>
               </div>
-              <Button
-                variant="ghostDanger"
-                onClick={() => {
-                  remove.reset();
-                  setConfirming(run);
-                }}
-                aria-label={`Remove ${run.workoutName} at ${time(run.completedAt)} from history`}
-              >
-                Remove
-              </Button>
-            </li>
+              <Menu
+                className="-mt-1 -mr-1"
+                label={`Actions for ${run.workoutName} at ${time(run.completedAt)}`}
+                items={[
+                  {
+                    label: 'Remove from history',
+                    icon: Trash2,
+                    danger: true,
+                    onSelect: () => {
+                      remove.reset();
+                      setConfirming(run);
+                    },
+                  },
+                ]}
+              />
+            </Card>
           ))}
         </ul>
       )}

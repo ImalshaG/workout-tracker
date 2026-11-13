@@ -25,17 +25,21 @@ Production-style: `npm run build && npm start` → http://localhost:3001
 
 ## Pages
 
+A left sidebar (a top bar on narrow screens) links the pages below. Its **Start workout** button opens a picker of your
+workouts, most recently done first, that jumps straight to the timer.
+
 - `/` (home): **Your progress**, a compact month view marking days with a completed workout. Colour shows streaks
   as heat: amber for day 1, deeper for day 2, orange for day 3+ in a row (current and longest streak shown above). Pick a day to see its runs below (time,
   duration, exercises) or remove one. `?month=YYYY-MM&day=YYYY-MM-DD` keeps your place. Arrow keys move between
   days, Page Up/Down change month. (Old `/calendar` links redirect here.)
-- `/workouts`: list of workouts; **+** creates one (name + exercises picked from the library).
+- `/workouts`: workouts as cards (exercise count, total time, when you last did it, Start); **New workout** creates one
+  (name + exercises picked from the library). Edit and Delete are in each card's ⋯ menu.
 - `/workouts/:id`: rename/delete the workout; add, remove and drag to reorder its exercises; set the rest between
   exercises and override any exercise's duration for this workout (↺ resets it to the exercise default).
 - `/workouts/:id/run`: runs the workout: each exercise for its duration, with the workout's rest between. Pause/resume (Space),
   skip (→), back (←), end. Beeps for the last 3s and on each change (can be muted); keeps the screen awake while running.
   Completed runs are saved to Your progress (ending early isn't).
-- `/exercises`: the exercise library; each exercise has a default duration (30s unless changed).
+- `/exercises`: the exercise library with a search box; each exercise has a default duration (30s unless changed).
 
 ## API
 
@@ -64,7 +68,9 @@ its runs (their `workoutId` becomes `null`).
 
 - `server/`: Hono API, Drizzle schema in `src/db/schema.ts`, committed migrations in `drizzle/`, routes in `src/routes/`.
   `createApp({ db, now })` is the app factory used by both the server and the tests.
-- `web/`: React + Vite + Tailwind + TanStack Query + React Router; drag and drop via dnd-kit. `src/api/` wraps the
+- `web/`: React + Vite + Tailwind + TanStack Query + React Router; drag and drop via dnd-kit, icons from lucide-react,
+  fonts (Outfit, Barlow Condensed) bundled via Fontsource. Design tokens (colours, fonts, radii, shadows) are in
+  `src/index.css`; shared UI (buttons, cards, badges, menu, toasts) in `src/components/`. `src/api/` wraps the
   typed `hc<AppType>` client (it imports only the `AppType` type from `server/src/app.ts`); features live in
   `src/progress/`, `src/workouts/`, `src/run/` and `src/exercises/`, shared UI in `src/components/`.
 
