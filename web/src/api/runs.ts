@@ -8,10 +8,15 @@ export const runKeys = {
   all: ['runs'] as const,
   range: (from: number, to: number) => ['runs', from, to] as const,
   days: (tz: string) => ['runs', 'days', tz] as const,
+  allRuns: () => ['runs', 'all'] as const,
 };
 
-export async function listRuns(from: number, to: number): Promise<Run[]> {
-  return unwrap(await api.$get({ query: { from: String(from), to: String(to) } }));
+/** Completed runs, optionally limited to `completedAt` in [from, to). */
+export async function listRuns(from?: number, to?: number): Promise<Run[]> {
+  const query: { from?: string; to?: string } = {};
+  if (from !== undefined) query.from = String(from);
+  if (to !== undefined) query.to = String(to);
+  return unwrap(await api.$get({ query }));
 }
 
 export async function logRun(workoutId: number, startedAt: number): Promise<Run> {
