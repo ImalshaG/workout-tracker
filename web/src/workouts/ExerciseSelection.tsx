@@ -2,7 +2,8 @@ import { useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { exerciseKeys, listExercises, type Exercise } from '../api/exercises';
-import { Button, LoadError, StatusLine } from '../components/ui';
+import { Plus } from 'lucide-react';
+import { Badge, Button, LoadError, StatusLine } from '../components/ui';
 import { formatShortDuration } from '../time';
 import { SortableExerciseList } from './SortableExerciseList';
 
@@ -40,10 +41,10 @@ export function ExerciseSelection({ selected, onChange, selectedLabel, emptyHint
     <div className="space-y-5">
       <section aria-label={selectedLabel}>
         <h3 className="text-sm font-semibold">
-          {selectedLabel} <span className="font-normal text-zinc-500">({selected.length})</span>
+          {selectedLabel} <span className="font-normal text-muted">({selected.length})</span>
         </h3>
         {selected.length === 0 ? (
-          <p className="mt-2 rounded-md border border-dashed border-zinc-300 px-3 py-4 text-sm text-zinc-500 dark:border-zinc-700">
+          <p className="mt-2 rounded-xl border border-dashed border-line px-3 py-4 text-sm text-muted">
             {emptyHint}
           </p>
         ) : (
@@ -86,15 +87,15 @@ function ExercisePicker({ counts, onAdd }: { counts: Map<number, number>; onAdd:
       ) : query.isError ? (
         <LoadError what="exercises" onRetry={() => query.refetch()} retrying={query.isFetching} />
       ) : query.data.length === 0 ? (
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-muted">
           Your exercise library is empty.{' '}
-          <Link to="/exercises" className="text-indigo-600 hover:underline dark:text-indigo-400">
+          <Link to="/exercises" className="font-semibold text-brand-ink hover:underline">
             Add exercises
           </Link>{' '}
           first.
         </p>
       ) : (
-        <ul className="mt-2 max-h-64 divide-y divide-zinc-200 overflow-y-auto rounded-md border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        <ul className="mt-2 max-h-64 divide-y divide-line overflow-y-auto rounded-xl border border-line">
           {query.data.map((exercise) => {
             const count = counts.get(exercise.id) ?? 0;
             return (
@@ -102,18 +103,16 @@ function ExercisePicker({ counts, onAdd }: { counts: Map<number, number>; onAdd:
                 <div className="min-w-0 flex-1">
                   <p className="text-sm break-words">
                     <span className="font-medium">{exercise.name}</span>{' '}
-                    <span className="text-xs text-zinc-500 tabular-nums">{formatShortDuration(exercise.durationSeconds)}</span>
+                    <span className="text-xs text-muted tabular-nums">{formatShortDuration(exercise.durationSeconds)}</span>
                   </p>
                   {exercise.description && (
-                    <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{exercise.description}</p>
+                    <p className="truncate text-xs text-muted">{exercise.description}</p>
                   )}
                 </div>
                 {count > 0 && (
-                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                    Added{count > 1 ? ` ×${count}` : ''}
-                  </span>
+                  <Badge>Added{count > 1 ? ` ×${count}` : ''}</Badge>
                 )}
-                <Button onClick={() => onAdd(exercise)} aria-label={`Add ${exercise.name}`}>
+                <Button size="sm" icon={Plus} onClick={() => onAdd(exercise)} aria-label={`Add ${exercise.name}`}>
                   {count > 0 ? 'Add again' : 'Add'}
                 </Button>
               </li>
