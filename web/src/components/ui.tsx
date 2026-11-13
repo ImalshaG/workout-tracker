@@ -136,8 +136,3 @@ export function LoadError({ what, onRetry, retrying }: { what: string; onRetry: 
     </div>
   );
 }
-
-/** @deprecated Removed once the last page migrates to a labelled primary Button. */
-export function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return <Button variant="primary" onClick={onClick}>{label}</Button>;
-}

@@ -5,6 +5,7 @@ import { createExercise, EXERCISE_FIELDS, exerciseKeys } from '../api/exercises'
 import { Modal } from '../components/Modal';
 import { parseSeconds, SecondsField } from '../components/SecondsInput';
 import { DEFAULT_DURATION_SECONDS, DURATION_MAX_SECONDS, DURATION_MIN_SECONDS } from '../time';
+import { useToast } from '../components/Toast';
 import { Button, FieldError, inputClass } from '../components/ui';
 
 interface Props {
@@ -23,6 +24,7 @@ export function AddExerciseDialog({ open, onClose }: Props) {
 
 function AddExerciseForm({ headingId, onClose }: { headingId: string; onClose: () => void }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(String(DEFAULT_DURATION_SECONDS));
@@ -30,7 +32,10 @@ function AddExerciseForm({ headingId, onClose }: { headingId: string; onClose: (
 
   const mutation = useMutation({
     mutationFn: createExercise,
-    onSuccess: onClose,
+    onSuccess: (exercise) => {
+      toast(`Added ${exercise.name}`);
+      onClose();
+    },
     onSettled: () => queryClient.invalidateQueries({ queryKey: exerciseKeys.all }),
   });
 
@@ -56,12 +61,12 @@ function AddExerciseForm({ headingId, onClose }: { headingId: string; onClose: (
         if (e.key === 'Escape' && mutation.isPending) e.preventDefault();
       }}
     >
-      <h2 id={headingId} className="text-lg font-semibold">
+      <h2 id={headingId} className="text-xl font-bold">
         Add exercise
       </h2>
       <div>
         <label htmlFor={`${id}-name`} className="mb-1 block text-sm font-medium">
-          Name <span className="text-zinc-500">(required)</span>
+          Name <span className="text-muted">(required)</span>
         </label>
         <input
           id={`${id}-name`}
@@ -79,7 +84,7 @@ function AddExerciseForm({ headingId, onClose }: { headingId: string; onClose: (
       </div>
       <div>
         <label htmlFor={`${id}-description`} className="mb-1 block text-sm font-medium">
-          Description <span className="text-zinc-500">(optional)</span>
+          Description <span className="text-muted">(optional)</span>
         </label>
         <textarea
           id={`${id}-description`}
